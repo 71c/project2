@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+    <script>
+        // Load current value of  counter
+        document.addEventListener('DOMContentLoaded', () => {
+
+            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+            // for testing
+            localStorage.removeItem('display_name');
+
+            // https://www.w3schools.com/jsref/met_element_setattribute.asp
+
+            if (!localStorage.getItem('display_name')) {
+
+                document.querySelector('#make_name').onsubmit = function() {
+                    let name = document.querySelector('#name_input').value;
+                    localStorage.setItem('display_name', name);
+
+                    let make_name = document.querySelector('#make_name');
+                    make_name.parentNode.removeChild(make_name);
+                    // https://www.abeautifulsite.net/adding-and-removing-elements-on-the-fly-using-javascript
+
+
+                    document.querySelector('#heading').innerHTML = localStorage.getItem('display_name');
+
+                    // Stop form from submitting
+                    return false;
+                };
+
+            }
+            else {
+                document.querySelector('#heading').innerHTML = localStorage.getItem('display_name');
+            }
+
+            document.querySelector('#make_channel').onsubmit = function() {
+                let name = document.querySelector('#channel_input').value;
+
+                socket.emit('submit channel', {'channel_name': name});
+                // Stop form from submitting
+                return false;
+            };
+
+            socket.on('accept submit channel', data => {
+                if (data.success) {
+                    // channel created
+                    console.log('channel created');
+                } else {
+                    // channel not created
+                    console.log('channel not created');
+                }
+            });
+
+        });
+
+    </script>
+</head>
+
+<body>
+    <h1 id="heading">Type in a display name. This name will be associated with every message you send.</h1>
+
+    <form id="make_name">
+        <input type="text" placeholder="Enter a display name" id="name_input">
+        <input id="submit" type="submit">
+    </form>
+
+    <form id='make_channel'>
+        <input type="text" placeholder="Create a channel" id="channel_input">
+        <input id="submit" type="submit">
+    </form>
+
+</body>
+
+
+</html>
