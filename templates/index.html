@@ -24,8 +24,12 @@
 
             socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
-            socket.emit('get channels');
-            load_channel();
+            socket.on('connect', () => {
+                socket.emit('get channels');
+                load_channel();
+            });
+
+
 
             if (!localStorage.getItem('display_name')) {
                 document.querySelector('#heading').innerHTML = 'Type in a display name. This name will be associated with every message you send.';
@@ -131,9 +135,65 @@
             });
 
             function load_channel() {
-                console.log('hi');
                 let current_channel = localStorage.getItem('current_channel');
                 socket.emit('request messages', { 'channel': current_channel });
+                console.log('requested messages');
+            }
+
+            function render_channel_part() {
+                console.log('rendering channel section...');
+
+                let right = document.createElement('div');
+                right.setAttribute('id', 'right');
+
+                let channel_heading = document.createElement('h3');
+                channel_heading.setAttribute('id', 'channel');
+
+                let messages = document.createElement('ul');
+                messages.setAttribute('class', 'list-unstyled');
+                messages.setAttribute('id', 'messages');
+
+                let send_message = document.createElement('form');
+                send_message.onsubmit = function() {
+                    let message = document.querySelector('#message').value;
+                    socket.emit('send message', { 'channel': localStorage.getItem('current_channel'), 'message': message, 'display_name': localStorage.getItem('display_name') });
+                    load_channel();
+
+                    document.querySelector('#message').value = '';
+                    document.querySelector('#submit_message').disabled = true;
+
+
+                    // Stop form from submitting
+                    return false;
+                };
+                send_message.setAttribute('id', 'send_message');
+                let message_input = document.createElement('input');
+                message_input.setAttribute('type', 'text');
+                message_input.setAttribute('placeholder', 'send a message');
+                message_input.setAttribute('id', 'message');
+                // Enable button only if there is text in the input field
+                message_input.onkeyup = function() {
+                    let message_is_empty = this.value.length === 0;
+                    document.querySelector('#submit_message').disabled = message_is_empty;
+                };
+
+                let submit_message = document.createElement('input');
+                submit_message.setAttribute('id', 'submit_message');
+                submit_message.setAttribute('type', 'submit');
+                // By default, submit button is disabled
+                submit_message.disabled = true;
+
+                send_message.append(message_input);
+                send_message.append(submit_message);
+
+                right.append(channel_heading);
+                right.append(messages);
+                right.append(send_message);
+
+                var body = document.querySelector('body');
+                body.append(right);
+
+                console.log('done rendering channel section');
             }
         });
 
@@ -171,43 +231,7 @@
 
 
 
-        function render_channel_part() {
-            let right = document.createElement('div');
-            right.setAttribute('id', 'right');
 
-            let channel_heading = document.createElement('h3');
-            channel_heading.setAttribute('id', 'channel');
-
-            let messages = document.createElement('ul');
-            messages.setAttribute('class', 'list-unstyled');
-            messages.setAttribute('id', 'messages');
-
-            let send_message = document.createElement('form');
-            send_message.onsubmit = function() {
-                let message = document.querySelector('#message').value;
-                socket.emit('send message', { 'channel': localStorage.getItem('current_channel'), 'message': message, 'display_name': localStorage.getItem('display_name') });
-                // Stop form from submitting
-                return false;
-            };
-            send_message.setAttribute('id', 'send_message');
-            let message_input = document.createElement('input');
-            message_input.setAttribute('type', 'text');
-            message_input.setAttribute('placeholder', 'send a message');
-            message_input.setAttribute('id', 'message');
-            let submit_message = document.createElement('input');
-            submit_message.setAttribute('id', 'submit_message');
-            submit_message.setAttribute('type', 'submit');
-
-            send_message.append(message_input);
-            send_message.append(submit_message);
-
-            right.append(channel_heading);
-            right.append(messages);
-            right.append(send_message);
-
-            var body = document.querySelector('body');
-            body.append(right);
-        }
     </script>
 
 

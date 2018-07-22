@@ -20,7 +20,7 @@ def index():
 
 @socketio.on("get channels")
 def send_channels():
-    emit("send channels", {"channels": list(messages_by_channel.keys())}, broadcast=True)
+    emit("send channels", {"channels": list(messages_by_channel.keys())})
 
 @socketio.on("submit channel")
 def create_channel(data):
@@ -37,9 +37,6 @@ def broadcast_message(data):
     contents = data['message']
     display_name = data['display_name']
 
-    if channel not in messages_by_channel:
-        return
-
     timestamp = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
     message = {'time': timestamp, 'message': contents, 'display_name': display_name}
 
@@ -49,9 +46,11 @@ def broadcast_message(data):
     if len(messages_by_channel[channel]) > 100:
         messages_by_channel[channel] = messages_by_channel[channel][-100:]
 
-    emit('give messages', {'channel': channel, 'messages': messages_by_channel[channel]})
+    emit('give messages', {'channel': channel, 'messages': messages_by_channel[channel]}, broadcast=True)
 
 @socketio.on('request messages')
 def give_messages(data):
     channel = data['channel']
+    if channel not in messages_by_channel:
+        return
     emit('give messages', {'channel': channel, 'messages': messages_by_channel[channel]})
