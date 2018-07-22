@@ -15,23 +15,20 @@
             overflow: hidden;
             margin: 20px;
         }
-
     </style>
 
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
     <script>
-        // Load current value of  counter
+        var socket;
         document.addEventListener('DOMContentLoaded', () => {
-            console.log(localStorage.getItem('current_channel'));
 
-            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
-
-            // for testing
-            localStorage.removeItem('display_name');
+            socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
             socket.emit('get channels');
+            load_channel();
 
             if (!localStorage.getItem('display_name')) {
+                document.querySelector('#heading').innerHTML = 'Type in a display name. This name will be associated with every message you send.';
 
                 let form = document.createElement('form');
                 form.setAttribute('id', 'make_name');
@@ -79,10 +76,6 @@
                 return false;
             };
 
-            socket.on('broadcast message', data => {
-                console.log(data);
-            });
-
             socket.on('give messages', data => {
                 if (localStorage.getItem('current_channel') === data.channel) {
                     // Removes all children. I used this to help me: https://stackoverflow.com/a/3955238/9911203
@@ -114,47 +107,7 @@
                     button.onclick = function() {
                         let channel_name = this.innerHTML;
                         localStorage.setItem('current_channel', channel_name);
-
-                        if (! document.querySelector('#right')) {
-                            let right = document.createElement('div');
-                            right.setAttribute('id', 'right');
-
-                            let channel_heading = document.createElement('h3');
-                            channel_heading.setAttribute('id', 'channel');
-
-                            let messages = document.createElement('ul');
-                            messages.setAttribute('class', 'list-unstyled');
-                            messages.setAttribute('id', 'messages');
-
-                            let send_message = document.createElement('form');
-                            send_message.onsubmit = function() {
-                                let message = document.querySelector('#message').value;
-                                socket.emit('send message', {'channel': channel_name, 'message': message, 'display_name': localStorage.getItem('display_name')});
-                                // Stop form from submitting
-                                return false;
-                            };
-                            send_message.setAttribute('id', 'send_message');
-                            let message_input = document.createElement('input');
-                            message_input.setAttribute('type', 'text');
-                            message_input.setAttribute('placeholder', 'send a message');
-                            message_input.setAttribute('id', 'message');
-                            let submit_message = document.createElement('input');
-                            submit_message.setAttribute('id', 'submit_message');
-                            submit_message.setAttribute('type', 'submit');
-
-                            send_message.append(message_input);
-                            send_message.append(submit_message);
-
-                            right.append(channel_heading);
-                            right.append(messages);
-                            right.append(send_message);
-
-                            var body = document.querySelector('body');
-                            body.append(right);
-                        }
-                        document.querySelector('#channel').innerHTML = channel_name;
-
-                        socket.emit('request messages', {'channel': channel_name});
+                        load_channel();
                     };
                     li.append(button);
                     channel_list.append(li);
@@ -171,6 +124,22 @@
                     alert('channel not created');
                 }
             });
+
+            socket.on('channel does exist', () => {
+                let current_channel = localStorage.getItem('current_channel');
+                if (!document.querySelector('#right')) {
+                    render_channel_part();
+                }
+                document.querySelector('#channel').innerHTML = current_channel;
+
+                socket.emit('request messages', { 'channel': current_channel });
+            });
+
+            function load_channel() {
+                console.log('hi');
+                // check whether channel exists
+                socket.emit('channel exists', {'channel': localStorage.getItem('current_channel')});
+            }
         });
 
         function make_message(data) {
@@ -196,22 +165,53 @@
             info_div.append(display_name);
             info_div.append(timestamp);
 
-
-
-
-            // content.append(display_name);
-            // content.append(timestamp);
             content.append(info_div);
             content.append(text);
-
-            // <div class="d-flex w-100 justify-content-between">
-            //   <h5 class="mb-1">List group item heading</h5>
-            //   <small class="text-muted">3 days ago</small>
-            // </div>
 
             li.append(content);
 
             return li;
+        }
+
+
+
+
+        function render_channel_part() {
+            let right = document.createElement('div');
+            right.setAttribute('id', 'right');
+
+            let channel_heading = document.createElement('h3');
+            channel_heading.setAttribute('id', 'channel');
+
+            let messages = document.createElement('ul');
+            messages.setAttribute('class', 'list-unstyled');
+            messages.setAttribute('id', 'messages');
+
+            let send_message = document.createElement('form');
+            send_message.onsubmit = function() {
+                let message = document.querySelector('#message').value;
+                socket.emit('send message', { 'channel': localStorage.getItem('current_channel'), 'message': message, 'display_name': localStorage.getItem('display_name') });
+                // Stop form from submitting
+                return false;
+            };
+            send_message.setAttribute('id', 'send_message');
+            let message_input = document.createElement('input');
+            message_input.setAttribute('type', 'text');
+            message_input.setAttribute('placeholder', 'send a message');
+            message_input.setAttribute('id', 'message');
+            let submit_message = document.createElement('input');
+            submit_message.setAttribute('id', 'submit_message');
+            submit_message.setAttribute('type', 'submit');
+
+            send_message.append(message_input);
+            send_message.append(submit_message);
+
+            right.append(channel_heading);
+            right.append(messages);
+            right.append(send_message);
+
+            var body = document.querySelector('body');
+            body.append(right);
         }
     </script>
 
@@ -219,7 +219,7 @@
 </head>
 
 <body>
-    <h1 id="heading">Type in a display name. This name will be associated with every message you send.</h1>
+    <h1 id="heading"></h1>
 
     <div id="left">
         <form id='make_channel'>
