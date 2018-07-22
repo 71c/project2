@@ -6,24 +6,58 @@ from flask_socketio import SocketIO, emit
 
 import random
 
+import time
+
+from datetime import date
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 socketio = SocketIO(app)
 
 # list of all channels
-channel_list = ['general']
+# channel_list = ['general']
+messages_by_channel = dict()
+
 
 @app.route("/")
 def index():
     return render_template('index.html')
+    print("HI")
 
-
+@socketio.on("get channels")
+def send_channels():
+    emit("send channels", {"channels": list(messages_by_channel.keys())}, broadcast=True)
 
 @socketio.on("submit channel")
-def vote(data):
+def create_channel(data):
     channel_name = data["channel name"]
-    if channel_name not in channel_list:
-        channel_list.append(channel_name)
-        emit("accept submit channel", {"success": True}, broadcast=True)
+    if channel_name not in messages_by_channel:
+        # channel_list.append(channel_name)
+        messages_by_channel[channel_name] = []
+        emit("accept submit channel", {'success': True}, broadcast=True)
     else:
-        emit("accept submit channel", {"success": False}, broadcast=True)
+        emit("accept submit channel", {'success': False}, broadcast=True)
+
+@socketio.on("send message")
+def broadcast_message(data):
+    channel = data['channel']
+    contents = data['message']
+    display_name = data['display_name']
+
+    timestamp = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+    message = {'time': timestamp, 'message': contents, 'display_name': display_name}
+
+    # add message
+    messages_by_channel[channel].append(message)
+    # only display last 100 messages
+    if len(messages_by_channel[channel]) > 100:
+        messages_by_channel[channel] = messages_by_channel[channel][-100:]
+
+    # emit("broadcast message", {"channel": data['channel'], "message": data['message'], "display_name": display_name}, broadcast=True)
+    emit('give messages', {'channel': channel, 'messages': messages_by_channel[channel]})
+
+@socketio.on('request messages')
+def give_messages(data):
+    channel = data['channel']
+
+    emit('give messages', {'channel': channel, 'messages': messages_by_channel[channel]})
