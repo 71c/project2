@@ -37,6 +37,9 @@ def broadcast_message(data):
     contents = data['message']
     display_name = data['display_name']
 
+    if channel not in messages_by_channel:
+        return
+
     timestamp = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
     message = {'time': timestamp, 'message': contents, 'display_name': display_name}
 
@@ -52,8 +55,3 @@ def broadcast_message(data):
 def give_messages(data):
     channel = data['channel']
     emit('give messages', {'channel': channel, 'messages': messages_by_channel[channel]})
-
-@socketio.on('channel exists')
-def channel_exists(data):
-    if data['channel'] in messages_by_channel:
-        emit('channel does exist')

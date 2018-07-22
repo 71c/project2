@@ -78,6 +78,11 @@
 
             socket.on('give messages', data => {
                 if (localStorage.getItem('current_channel') === data.channel) {
+                    if (!document.querySelector('#right')) {
+                        render_channel_part();
+                    }
+                    document.querySelector('#channel').innerHTML = data.channel;
+
                     // Removes all children. I used this to help me: https://stackoverflow.com/a/3955238/9911203
                     var messages_list = document.getElementById("messages");
                     while (messages_list.firstChild) {
@@ -125,20 +130,10 @@
                 }
             });
 
-            socket.on('channel does exist', () => {
-                let current_channel = localStorage.getItem('current_channel');
-                if (!document.querySelector('#right')) {
-                    render_channel_part();
-                }
-                document.querySelector('#channel').innerHTML = current_channel;
-
-                socket.emit('request messages', { 'channel': current_channel });
-            });
-
             function load_channel() {
                 console.log('hi');
-                // check whether channel exists
-                socket.emit('channel exists', {'channel': localStorage.getItem('current_channel')});
+                let current_channel = localStorage.getItem('current_channel');
+                socket.emit('request messages', { 'channel': current_channel });
             }
         });
 
