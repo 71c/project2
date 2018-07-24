@@ -1,0 +1,36 @@
+#left {
+    float: left;
+    width: 300px;
+    overflow: hidden;
+    margin-left: 20px;
+}
+
+/*#heading {*/
+/*    margin-left: 20px;*/
+/*}*/
+
+#right {
+    overflow: hidden;
+}
+
+#messages_container {
+    overflow: scroll;
+    height: 400px;
+    border: 1px solid gray;
+    max-width: 800px;
+    margin-right: 20px;
+}
+
+#channels_list {
+    margin-right: 40px;
+}
+
+#send_message {
+    max-width: 800px;
+    margin-right: 20px;
+}
+
+p {
+    /*this only breaks words into separate lines if the line is too long; otherwise it breaks between words.*/
+    word-break: break-word;
+}

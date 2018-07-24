@@ -3,347 +3,54 @@
 
 <head>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
-    <style>
-        #left {
-            float: left;
-            width: 300px;
-            overflow: hidden;
-            margin-left: 20px;
-        }
-
-        #heading {
-            margin-left: 20px;
-        }
-
-        #right {
-            overflow: hidden;
-        }
-
-        #messages_container {
-            overflow:scroll;
-            height:400px;
-            border: 1px solid gray;
-            max-width: 800px;
-            margin-right: 20px;
-        }
-
-        #channels_list {
-            margin-right: 40px;
-        }
-
-
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
 
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
-    <script>
-        var socket;
-        document.addEventListener('DOMContentLoaded', () => {
-
-            // localStorage.removeItem('display_name');
-
-            socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
-
-            socket.on('connect', () => {
-                socket.emit('get channels');
-                load_channel();
-            });
-
-            // document..classList.add('active');
-
-            if (!localStorage.getItem('display_name')) {
-                document.querySelector('#heading').innerHTML = 'Type in a display name. This name will be associated with every message you send.';
-
-                let form = document.createElement('form');
-                form.setAttribute('id', 'make_name');
-                let name = document.createElement('input');
-                name.setAttribute('type', 'text');
-                name.setAttribute('placeholder', 'Enter a display name');
-                name.setAttribute('id', 'name_input');
-                let submit = document.createElement('input');
-                submit.setAttribute('id', 'submit');
-                submit.setAttribute('type', 'submit');
-                form.append(name);
-                form.append(submit);
-
-                var body = document.querySelector('#left');
-                body.insertBefore(form, body.childNodes[1]);
-                // https://www.w3schools.com/jsref/met_node_insertbefore.asp
-                // https://stackoverflow.com/questions/2007357/how-to-set-dom-element-as-the-first-child
-
-                document.querySelector('#make_name').onsubmit = function() {
-                    let name = document.querySelector('#name_input').value;
-                    localStorage.setItem('display_name', name);
-
-                    let make_name = document.querySelector('#make_name');
-                    make_name.parentNode.removeChild(make_name);
-                    // https://www.abeautifulsite.net/adding-and-removing-elements-on-the-fly-using-javascript
-
-                    document.querySelector('#heading').innerHTML = localStorage.getItem('display_name');
-
-                    document.querySelector('#name_input').value = '';
-                    document.querySelector('#submit').disabled = true;
-
-                    // Stop form from submitting
-                    return false;
-                };
-                document.querySelector('#name_input').onkeyup = function() {
-                    let message_is_empty = this.value.length === 0;
-                    document.querySelector('#submit').disabled = message_is_empty;
-                };
-            }
-            else {
-                document.querySelector('#heading').innerHTML = localStorage.getItem('display_name');
-            }
-
-
-            configure_make_channel_form();
-
-
-            socket.on('give messages', data => {
-                if (localStorage.getItem('current_channel') === data.channel) {
-                    if (!document.querySelector('#right')) {
-                        render_channel_part();
-                    }
-                    document.querySelector('#channel').innerHTML = data.channel;
-
-                    // Removes all children. I used this to help me: https://stackoverflow.com/a/3955238/9911203
-                    var messages_list = document.getElementById("messages");
-                    while (messages_list.firstChild) {
-                        messages_list.removeChild(messages_list.firstChild);
-                    }
-
-                    let i = 0;
-                    for (let message of data.messages) {
-                        let element = make_message(message);
-                        if (i % 2 === 1) {
-                            element.setAttribute('style', 'background-color:white;');
-                        } else {
-                            element.setAttribute('style', 'background-color:#ededed;');
-                        }
-                        messages_list.append(element);
-                        if (i === data.messages.length - 1) {
-                            element.scrollIntoView({behavior: 'smooth'});
-                        }
-                        i++;
-                    }
-                }
-            });
-
-            socket.on('send channels', data => {
-
-                // removes existing channel list
-                document.querySelector('#left').removeChild(document.querySelector('#channels_list'));
-
-                // creates a new channel list
-                let channel_list = document.createElement('div');
-                channel_list.setAttribute('role', "tablist");
-                channel_list.setAttribute('class', 'list-group')
-                channel_list.setAttribute('id', 'channels_list');
-
-                // adds the channels
-                for (let channel of data.channels) {
-                    // let li = document.createElement('button');
-                    // li.setAttribute('class', 'list-group-item list-group-item-action')
-                    let button = document.createElement('a');
-                    button.setAttribute('class', 'list-group-item list-group-item-action');
-                    // button.setAttribute('data-toggle', 'list')
-                    button.setAttribute('role', 'tab');
-                    button.setAttribute('id', channel);
-                    button.innerText = channel;
-
-                    button.onclick = function() {
-                        let channel_name = this.innerHTML;
-
-                        // if the channel is already selectd
-                        if (button.classList.contains('active'))
-                            return;
-
-                        // For changing the classes I referenced: https://www.w3schools.com/howto/howto_js_add_class.asp
-                        // based on http://jsfiddle.net/mgjk3xk2/
-                        this.parentNode.childNodes.forEach(function(item) {
-                            item.classList.remove('active');
-                        });
-                        this.classList.add('active');
-
-                        localStorage.setItem('current_channel', channel_name);
-                        load_channel();
-                    };
-                    channel_list.append(button);
-                }
-                document.querySelector('#left').appendChild(channel_list);
-
-                // activate the current channel
-                // select current channel button
-                let button = document.getElementById(localStorage.getItem('current_channel'));
-                // if it exists, make it active
-                if (button)
-                    button.classList.add('active');
-            });
-
-            socket.on('accept submit channel', data => {
-                if (data.success) {
-                    alert('channel created');
-                    socket.emit('get channels');
-                }
-                else {
-                    alert('channel not created');
-                }
-            });
-
-            function load_channel() {
-                let current_channel = localStorage.getItem('current_channel');
-                socket.emit('request messages', { 'channel': current_channel });
-                console.log('requested messages');
-            }
-
-            function render_channel_part() {
-                console.log('rendering channel section...');
-
-                let channel_heading = document.createElement('h3');
-                channel_heading.setAttribute('id', 'channel');
-
-                let messages = document.createElement('div');
-                messages.setAttribute('class', 'list-group-flush');
-
-                messages.setAttribute('id', 'messages');
-
-                let send_message = document.createElement('form');
-                send_message.onsubmit = function() {
-                    let message = document.querySelector('#message').value;
-                    socket.emit('send message', { 'channel': localStorage.getItem('current_channel'), 'message': message, 'display_name': localStorage.getItem('display_name') });
-                    load_channel();
-
-                    document.querySelector('#message').value = '';
-                    document.querySelector('#submit_message').disabled = true;
-
-                    // Stop form from submitting
-                    return false;
-                };
-                send_message.setAttribute('id', 'send_message');
-                let message_input = document.createElement('input');
-                message_input.setAttribute('style', 'width:800px;');
-                message_input.setAttribute('type', 'text');
-                message_input.setAttribute('placeholder', 'send a message');
-                message_input.setAttribute('id', 'message');
-                // Enable button only if there is text in the input field
-                message_input.onkeyup = function() {
-                    let message_is_empty = this.value.length === 0;
-                    document.querySelector('#submit_message').disabled = message_is_empty;
-                };
-
-                let submit_message = document.createElement('input');
-                submit_message.setAttribute('id', 'submit_message');
-                submit_message.setAttribute('type', 'submit');
-                // By default, submit button is disabled
-                submit_message.disabled = true;
-
-                send_message.append(message_input);
-                send_message.append(submit_message);
-
-
-                let right = document.createElement('div');
-
-                right.setAttribute('id', 'right');
-                // right.setAttribute('class', 'd-flex')
-
-                right.append(channel_heading);
-
-
-                let messages_container = document.createElement('div');
-                messages_container.setAttribute('id', 'messages_container');
-                messages_container.setAttribute('class', 'd-flex flex-column mb-3');
-                messages_container.append(messages);
-                right.append(messages_container);
-
-                right.append(send_message);
-
-
-                var body = document.querySelector('body');
-                body.append(right);
-
-                console.log('done rendering channel section');
-            }
-        });
-
-        function configure_make_channel_form() {
-            document.querySelector('#submit').disabled = true;
-
-            document.querySelector('#make_channel').onsubmit = function() {
-                let name = document.querySelector('#channel_input').value;
-
-                socket.emit('submit channel', { 'channel name': name });
-
-                document.querySelector('#channel_input').value = '';
-                document.querySelector('#submit').disabled = true;
-
-                // Stop form from submitting
-                return false;
-            };
-
-            document.querySelector('#channel_input').onkeyup = function() {
-                let message_is_empty = this.value.length === 0;
-                document.querySelector('#submit').disabled = message_is_empty;
-            };
-        }
-
-        function make_message(data) {
-            let from = data.display_name;
-            let text = data.message;
-            let time = data.time;
-
-            let li = document.createElement('li');
-            li.setAttribute('class', 'list-group-item');
-            let content = document.createElement('div');
-            content.setAttribute('class', 'media-body');
-            let display_name = document.createElement('h5');
-            display_name.setAttribute('class', 'mt-0 mb-1');
-            display_name.innerHTML = from;
-            let timestamp = document.createElement('small');
-            timestamp.innerHTML = time;
-            // I used this to help me add padding: https://getbootstrap.com/docs/4.1/utilities/spacing/
-            // I found out about the small tag and text muted here: https://getbootstrap.com/docs/4.1/components/list-group/#custom-content
-            timestamp.setAttribute('class', 'text-muted pl-2 pt-1');
-
-            let info_div = document.createElement('div');
-            info_div.setAttribute('class', 'd-flex justify-content-start');
-            info_div.append(display_name);
-            info_div.append(timestamp);
-
-            content.append(info_div);
-            content.append(text);
-
-            li.append(content);
-
-            return li;
-        }
-
-
-
-
-
-    </script>
-
-
+    <script type="text/javascript" src="{{ url_for('static', filename='index.js') }}"></script>
 </head>
 
 <body>
 
-    <h1 id="heading"></h1>
 
     <div id="left">
-
-
-        <h4>Make a New Channel</h4>
+        <h1 id="heading">AlojChat</h1>
+        <p><em id="info">No username</em><em id="screen_name_info"></em></p>
+        <h4>Start a new chat room</h4>
         <form id='make_channel'>
-            <input type="text" placeholder="Create a channel" id="channel_input">
-            <input id="submit" type="submit">
+            <input type="text" placeholder="Create a chat room" id="channel_input">
+            <input id="submit_channel" type="submit">
         </form>
         <h4>Channels</h4>
         <ul id='channels_list' class='list-group'>
         </ul>
-
     </div>
-</body>
 
+
+
+    <div class="modal" tabindex="-1" role="dialog" id="myModal" >
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Type in your username</h5>
+                </div>
+
+                <div class="modal-body">
+                    <p>This name will be associated with every message you send.</p>
+                    <form id="make_name" class="form-row">
+                        <input type="text" class="form-control col-10" placeholder="Enter a username" id="name_input">
+                        <button type="button" class="btn btn-primary col" data-dismiss="modal" id="submit">Submit</button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+
+</body>
 
 </html>
